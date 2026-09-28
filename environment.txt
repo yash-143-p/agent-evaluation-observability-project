@@ -1,0 +1,28 @@
+# Environment
+
+Python version: 3.13.0
+Operating system: Linux x86_64
+
+The project systems were run in their respective solution directories using
+Python virtual environments (`.venv`).
+
+Policy Pipeline:
+- Virtual environment: `.venv`
+- Tests and routing evidence were executed using the project environment.
+- The live perturbed end-to-end pipeline was executed through the
+  Vocareum Anthropic gateway.
+- The available gateway model identifiers required temporary compatibility
+  changes to the reference model defaults for the live run.
+- No API credentials are stored in this project evidence.
+
+Mortgage Extraction:
+- Virtual environment: `.venv`
+- Tests, mypy, ruff, normal extraction, missing-field extraction, and
+  discrepancy validation were executed using the project environment.
+
+Supply Chain:
+- Virtual environment: `.venv`
+- Development dependencies were installed in the project environment.
+- The OpenTelemetry semantic-conventions dependency was reinstalled to
+  resolve the environment import issue.
+- The mypy Python version was aligned with the actual Python 3.13 environment.
