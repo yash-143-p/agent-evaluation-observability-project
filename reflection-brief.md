@@ -25,44 +25,56 @@
 | Evidence | Value |
 |---|---|
 | Passing test count | 45 passed, 3 skipped |
-| Routing output file | `01-policy-pipeline/perturbed-routing-decisions.json` |
-| auto_approve / human_review / spot_check counts | 0 / 1 / 0 |
+| Baseline routing output | `01-policy-pipeline/baseline-routing-decisions.json` |
+| Baseline decisions | 9 |
+| Baseline auto_approve / human_review / spot_check | 0 / 9 / 0 |
+| Premium perturbation output | `01-policy-pipeline/premium-perturbed-routing-decisions.json` |
 
-The Policy test suite completed with 45 passed and 3 skipped. The routing tests themselves passed, including tests for auto-approve, human review, integration failure, reviewer disagreement, spot checking, calibration slicing, and JSON routing output. The captured test suite reports `45 passed, 3 skipped`. 
+The Policy test suite completed with 45 passed and 3 skipped. The routing tests passed, including tests for auto-approve, human review, integration failure, reviewer disagreement, spot checking, calibration slicing, and JSON routing output.
 
-### 1a. Retry boundary
+### 1a. Retry and validation boundary
 
-I deliberately removed the `Named Insured` value from a copy of `POL-2025-001.txt` and ran the end-to-end pipeline against the perturbed document.
+I created a copy of `POL-2025-001.txt` and blanked the `Total Policy Premium` value, changing `$1,847.62` to a blank value. I then ran the perturbed copy through the end-to-end pipeline.
 
-The final live run completed successfully. The captured run shows two successful API calls and the router recorded a reviewer disagreement on `coverage_limit`. The routing summary reported:
+The perturbed run produced:
 
-- `decisions_written`: `1`
+- `validation_failed`
+- `decisions_written`: `0`
+- `human_review`: `0`
 - `auto_approve`: `0`
-- `human_review`: `1`
 - `spot_check`: `0`
-- `escalations`: `0`
+- `escalations`: `1`
+- pattern: `premium_amount_absent`
+- category: `missing_source`
 
-The final routing record has `decision: human_review` and `reason: reviewer_disagreement=['coverage_limit']`. The record also has `fields_below_threshold: []`, so I do not claim that the missing `Named Insured` field itself was the direct routing trigger.
+The system therefore did not invent a premium value. Instead, the missing premium was represented as a validation/source problem and escalated.
 
-### 1b. Reading the router
+### 1b. Baseline versus perturbation
 
-The actual routing artifact is `01-policy-pipeline/perturbed-routing-decisions.json`. It contains one record for `POL-2025-001` with `decision: human_review` and `reviewer_disagreements: ["coverage_limit"]`. The confidence summary includes `coverage_limit: 1.0`, while the explicit routing reason is the independent reviewer disagreement.
+The unperturbed baseline for `POL-2025-001` produced:
 
-This provides the required evidence that an independent signal can route a case to human review rather than allowing the extraction to be silently accepted.
+- `decision`: `human_review`
+- `fields_below_threshold`: `["endorsements"]`
+- `reviewer_disagreements`: `["coverage_limit"]`
+- `premium_amount` confidence: `1.0`
 
-### 1c. Where the aggregate lies
+The premium-blank perturbation instead failed validation and produced zero routing decisions with one escalation for `premium_amount_absent`.
 
-The calibration report produced the following sliced results:
+This gives a direct observed contrast between the original document and the deliberately modified input. The experiment also demonstrates that a missing extracted value is not silently replaced with an invented value.
+
+### 1c. Independent review and calibration
+
+The unperturbed baseline also records an independent reviewer disagreement on `coverage_limit` for `POL-2025-001`, which is an explicit human-review signal separate from the extraction confidence.
+
+The calibration report produced:
 
 `umbrella  exclusions  n=2 conf=0.93 acc=0.00 brier=0.865`
 
-The overall result was:
+with:
 
 `OVERALL brier=0.291`
 
-The sliced view matters because an aggregate can hide a poorly calibrated policy-type/field combination. In this run, the umbrella/exclusions slice had high confidence but zero observed accuracy, while the overall aggregate alone would not reveal that specific weakness.
-
----
+The sliced view matters because an aggregate can hide a poorly calibrated policy-type/field combination. The umbrella/exclusions slice had high confidence but zero observed accuracy, while the overall aggregate alone would not reveal that specific weakness.
 
 ## 2. Schema-enforced two-pass extraction
 

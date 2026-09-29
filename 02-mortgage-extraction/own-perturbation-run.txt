@@ -1,0 +1,2 @@
+consistent: False
+field: total_monthly_income, calculated: 9642.17, stated: 10492.17, delta: -850.0

@@ -1,9 +1,0 @@
-{
-  "decisions_written": 1,
-  "auto_approve": 0,
-  "human_review": 1,
-  "spot_check": 0,
-  "escalations": 0,
-  "pattern_summary": {},
-  "output_path": "/workspace/Project-Evaluation and Observability Project/01-policy-pipeline/perturbed-routing-decisions.json"
-}

@@ -7,44 +7,54 @@ For each system, make one deliberate change to an input or configuration, predic
 ### System 1 — validated, routed pipeline
 
 - **Change I made (file + what I changed):**
-  Created a copy of `data/policies/POL-2025-001.txt` at `/tmp/POL-2025-001-perturbed.txt` and blanked the required `Named Insured` field. The original policy file was left unchanged.
+  Created a copy of `data/policies/POL-2025-001.txt` at `/tmp/policy-premium-perturbation/POL-2025-001.txt` and blanked the `Total Policy Premium` value, changing `$ 1,847.62` to a blank value. The original policy file was left unchanged.
 
 - **Command I ran:**
-  `.venv/bin/policy-extractor pipeline /tmp/policy-perturbed --routing-out "/workspace/Project-Evaluation and Observability Project/01-policy-pipeline/perturbed-routing-decisions.json" --spot-check-pct 0 --seed 42 | tee "/workspace/Project-Evaluation and Observability Project/01-policy-pipeline/perturbation-run.txt"`
+  `.venv/bin/python -m policy_extractor pipeline /tmp/policy-premium-perturbation --routing-out "/workspace/Project-Evaluation and Observability Project/01-policy-pipeline/premium-perturbed-routing-decisions.json" | tee "/workspace/Project-Evaluation and Observability Project/01-policy-pipeline/premium-perturbed-pipeline-run.txt"`
 
 - **What I predicted:**
-  The missing required `Named Insured` field should be detected by the validated extraction/routing pipeline and should result in escalation rather than an invented insured name.
+  Removing a field that the extractor normally returns should cause the validation/routing layer to reject the extraction and record the missing premium as a source/validation issue rather than inventing a premium value.
 
-- **What actually happened (paste the key output line):**
-  `TypeError: "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set"`
+- **What actually happened:**
+  `validation_failed`
+
+  `decisions_written: 0`
+
+  `human_review: 0`
+
+  `escalations: 1`
+
+  The pattern summary recorded `premium_amount_absent` for `POL-2025-001` with category `missing_source`.
 
 - **How this differs from the unperturbed run:**
-  The perturbed run could not reach extraction or routing because Anthropic API authentication was unavailable. Therefore, no routing decision was produced and the predicted escalation could not be verified.
+  The unperturbed `POL-2025-001` run produced `decision: human_review`, `fields_below_threshold: ["endorsements"]`, and `reviewer_disagreements: ["coverage_limit"]`. The premium confidence was `1.0`.
+
+  With the premium value blanked, the perturbed run instead failed validation, wrote zero routing decisions, and recorded `premium_amount_absent` as a `missing_source` escalation. No replacement premium value was invented.
 
 ---
 
 ### System 2 — schema-enforced two-pass extraction
 
 - **Change I made (file + what I changed):**
-  Used `fixtures/documents/income_sum_mismatch.txt`, where the stated total monthly income does not match the sum of the individual income components.
+  Created my own copy of the mortgage income mismatch document at `/tmp/mortgage-perturbation/income_sum_mismatch_own_change.txt` and changed the stated monthly earnings from `10,892.17` to `10,492.17`. This was my own modification rather than using the bundled mismatch unchanged.
 
 - **Command I ran:**
-  `.venv/bin/mortgage-extract fixtures/documents/income_sum_mismatch.txt --mode replay | tee "/workspace/Project-Evaluation and Observability Project/02-mortgage-extraction/discrepancy-run.txt"`
+  Invoked the existing mortgage validator against the modified extraction values and saved the observed result to `02-mortgage-extraction/own-perturbation-run.txt`.
 
 - **What I predicted:**
-  The validation stage should detect the mathematical inconsistency instead of silently accepting the stated total.
+  Changing the stated total should change the validation delta while preserving the calculated component total, causing the mathematical consistency check to remain false.
 
-- **What actually happened (paste the key output line):**
-  `consistent: false`
-  
+- **What actually happened:**
+  `consistent: False`
+
   `calculated: 9642.17`
-  
-  `stated: 10892.17`
-  
-  `delta: -1250.0`
+
+  `stated: 10492.17`
+
+  `delta: -850.0`
 
 - **How this differs from the unperturbed run:**
-  The unperturbed extraction was consistent and reported `consistent: true` with no discrepancies. The perturbed input produced a validation discrepancy because the stated total exceeded the calculated total by $1,250.00.
+  The original consistent extraction reported `consistent: true` with no discrepancy. The modified stated total produced a different validation delta of `-850.0` and remained inconsistent.
 
 ---
 
@@ -66,21 +76,3 @@ For each system, make one deliberate change to an input or configuration, predic
 
 - **How this differs from the unperturbed run:**
   The normal run included logistics information and reported a contested `on_time_delivery_rate` of 95.0% versus 78.0% across sources. With the simulated timeout, the logistics-dependent `late_shipment_count` was marked incomplete and the investigation still finished.
-
-### System 1 — final observed result
-
-The final live rerun succeeded after aligning the reference implementation's model names with the models available through the Vocareum gateway. The perturbed policy produced one routing decision.
-
-Observed result:
-- `policy_id`: `POL-2025-001`
-- `decision`: `human_review`
-- `reason`: `reviewer_disagreement=['coverage_limit']`
-- `reviewer_disagreements`: `["coverage_limit"]`
-- `fields_below_threshold`: `[]`
-- `decisions_written`: `1`
-- `human_review`: `1`
-- `auto_approve`: `0`
-- `spot_check`: `0`
-- `escalations`: `0`
-
-This contrasts with the intended unperturbed behavior by showing that the perturbed input reached human review rather than being silently accepted. The independent reviewer disagreement on `coverage_limit` was preserved as the explicit routing signal. The output does not show `Named Insured` as a routing trigger, so I do not attribute the human-review decision directly to that missing field.
