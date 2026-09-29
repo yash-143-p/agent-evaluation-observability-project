@@ -172,6 +172,8 @@ The dates show that these observations were made at different times. Requiring d
 
 ### 4a. One principle
 
+**Principle: never trust a well-formed extracted value without an independent semantic or consistency check.**
+
 The clearest example was the mortgage extraction discrepancy run in `02-mortgage-extraction/discrepancy-run.txt`.
 
 The extracted income values were structurally valid, but deterministic validation found:
